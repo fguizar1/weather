@@ -1,0 +1,11 @@
+apimServiceName: '{#apimName#}'
+namedValues:
+  - name: key-demo-service-v1
+    properties:
+      value: '{#apiKey#}'
+backends:
+  - name: be-demo-service-v1
+    properties:
+      title: '{#functionAppName#}'
+      url: '{#functionAppUrl#}'
+      resourceId: 'https://management.azure.com/subscriptions/{#subscriptionId#}/resourceGroups/{#resourceGroupName#}/providers/Microsoft.Web/sites/{#functionAppName#}'

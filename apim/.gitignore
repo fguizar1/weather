@@ -1,0 +1,10 @@
+*
+apis/*
+backends/*
+named values/*
+
+!.gitignore
+!apim.config.yaml
+!apis/demo-service-v1
+!backends/be-demo-service-v1
+!named values/key-demo-service-v1

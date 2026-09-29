@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "lib": ["es2024", "ESNext.Array", "ESNext.Collection", "ESNext.Iterator"],
+    "strict": true,
+    "module": "node20",
+    "target": "es2022",
+    "moduleResolution": "node16",
+    "esModuleInterop": true,
+    "declaration": true,
+    "declarationMap": true,
+    "removeComments": false,
+    "emitDeclarationOnly": false,
+    "forceConsistentCasingInFileNames": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "strictBuiltinIteratorReturn": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "typeRoots": ["./node_modules/@types"],
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "test/registro.test.ts", "test/login.test.ts", "test/clima.test.ts"],
+  "exclude": ["node_modules/*"],
+  "tsc-alias": {
+    "verbose": false,
+    "resolveFullPaths": true
+  }
+}

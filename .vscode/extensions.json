@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "ms-azuretools.vscode-azurefunctions",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "vitest.explorer",
+    "usernamehw.errorlens",
+    "streetsidesoftware.code-spell-checker",
+    "snyk-security.snyk-vulnerability-scanner"
+  ]
+}

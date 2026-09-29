@@ -1,0 +1,307 @@
+openapi: 3.0.3
+
+
+info:
+  title: Weather Api with authorization JTW
+  description: |
+    API that allows you to register users, log in, and check the weather of a city using a JWT token.
+    Every query and every error is recorded in a database, linked to the user who generated them.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:7071
+    description: Local Server
+
+tags:
+  - name: Auth
+    description: User registration and authentication (login) endpoints
+  - name: weather
+    description: Weather queries portected by JWT token authentication
+
+
+paths:
+
+  /src/functions/recorded:
+
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: |
+        Create a new users in the system. 
+
+        The password is hashed usign bcryptjs and is never stored
+        as plain text.
+
+        Usernames are case-insensitive. For example, "Alvaro" and "alvaro" are considered the same username.
+
+      operationId: registrarUsuario
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ''
+            example:
+              username: Alvaro
+              password: '1234'
+
+      responses:
+        '201':
+          description: User create Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: User create
+
+        '400':
+          description: invalid data or user than exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: The user already exists.
+
+  /src/functions/login:
+
+    post:
+      tags:
+        - Auth
+      summary: Login 
+      description: Validate the user's credentials and return a JWT token to use on protected endpoints.
+      operationId: loginUsuario
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ''
+            example:
+              username: Alvaro
+              password: '1234'
+
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type:
+                properties:
+                  mensaje:
+                    type : string
+                    example: token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                $ref: ''
+              
+
+
+        '401':
+          description: invalid credentials 
+          content:
+            application/json:
+              schema:
+                type:
+                properties:
+                  mensaje:
+                    type: string
+                    example: username or password incorrect 
+                $ref: ''
+
+
+  /src/functions/weather:
+
+    get:
+      tags:
+        - weather
+      summary: Check the weather of a city
+      description: Returns the current weather for the specified city.
+       Requires a valid JWT token in the Authorization header. 
+       Every successful request is saved in the weather_requests table; 
+       every error (for example, city not found) is saved in the error_log table, 
+       both linked to the user who made the request.
+      operationId: consultarClima
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: city
+          in: text plane
+          required: true
+          description: Name of the city to look up
+          schema:
+            type: string
+            example: Gudalajara
+
+        - name: pais
+          in: query
+          required: false
+          description: |
+            Optional ISO 3166-1 alpha-2 country code.
+            Use two letters, for example 'MX', 'ES', 'US', or 'CA'.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            example: MX
+
+      responses:
+        '200':
+          description: Weather successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coord: 
+                    type: object
+                    properties:
+                      lon:
+                        type: number 
+                        example: -74.827
+                      lat:
+                        type: number
+                        example: 9.5861
+                      weather: 
+                        type: array 
+                        items: 
+                          type: object
+                          properties:
+                            id: 
+                              type: integer
+                              example: 500
+                            main: 
+                              type: string 
+                              example: Rain
+                            description:
+                              type: string
+                              example: lluvia ligera 
+                            icon: 
+                              type: string 
+                              example: 10d
+                            base: 
+                              type: string 
+                              example: stations
+                            main2:
+                              type: object
+                              properties:
+                                temp:
+                                  type: number
+                                  example: 23.24
+                                feels_like:
+                                  type: number
+                                  example: 37.96
+                                temp_main:
+                                  type: number
+                                  example: 32.24
+                                temp_min:
+                                  type: number
+                                  example: 32.24
+                                temp_max:
+                                  type: number
+                                  example: 32.24
+                                pressure: 
+                                  type: integer
+                                  example: 1012
+                                humidity:
+                                  type: integer
+                                  example: 61
+                                sea_level:
+                                  type: integer
+                                  example: 1012
+                                grnd_level:
+                                  type: integer
+                                  example: 1004
+                            visibility:
+                              type: integer
+                              example: 1000
+                            wind: 
+                              type: object
+                              properties:
+                                speed: 
+                                  type: number
+                                  example: 1.01
+                                deg:
+                                  type: integer 
+                                  example: 113
+                                gust:
+                                  type: number
+                                  example: 4.58
+                            rain:
+                              type: object
+                              properties:
+                                1h:
+                                  type: number
+                                  example: 0.26
+                            clouds:
+                              type: object
+                              properties:
+                                all: 
+                                  type: integer 
+                                  example: 94
+                            dt:
+                              type: integer 
+                              example: 1790091635
+                            sys:
+                              type: object
+                              properties:
+                                country: 
+                                  type: string
+                                  example: CO 
+                                sunrise:
+                                  type: integer
+                                  example: 1790074111
+                                sunset: 
+                                  type: integer 
+                                  example: 1790117739 
+                            timezone: 
+                              type: integer
+                              example: -18000
+                              id:
+                                  type: integer 
+                                  example: 368593
+                              name:
+                                type: string
+                                example: Códoba
+                              cod:
+                                type: integer 
+                                example: 200
+                          
+
+
+
+
+        '400':
+          description: Unable to retrieve the weather. (for example, city no found)
+          content:
+            application/json:
+              schema:
+                 type:
+                 properties:
+                  mensaje:
+                    type: string
+                    example: city no found
+                 $ref: ''
+
+        '401':
+          description: Token invalid or absent
+          content:
+            application/json:
+              schema:
+                 type:
+                 properties:
+                  mensaje:
+                    type: string
+                    example: Invalid or missing token 
+                  $ref: ''
+
+
+
