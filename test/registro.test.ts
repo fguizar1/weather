@@ -34,22 +34,22 @@ describe("record", () => {
     vi.mocked(bcrypt.hash).mockResolvedValue("hashed_password" as never);
 
     const response = await record(
-      makeRequest({ username: "paco", password: "1234" }),
+      makeRequest({ username: "pancho", password: "1234" }),
       {} as any
     );
 
     expect(pool.query).toHaveBeenNthCalledWith(
       1,
-      "SELECT id FROM usuarios WHERE LOWER(username) = LOWER($1)",
-      ["paco"]
+      "SELECT id FROM users WHERE LOWER(username) = LOWER($1)",
+      ["pancho"]
     );
 
     expect(bcrypt.hash).toHaveBeenCalledWith("1234", 10);
 
     expect(pool.query).toHaveBeenNthCalledWith(
       2,
-      "INSERT INTO usuarios (username, password_hash) VALUES ($1, $2)",
-      ["paco", "hashed_password"]
+      "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+      ["pancho", "hashed_password"]
     );
 
     expect(response).toEqual({
@@ -85,7 +85,7 @@ describe("record", () => {
     } as any);
 
     const response = await record(
-      makeRequest({ username: "paco", password: "1234" }),
+      makeRequest({ username: "pancho", password: "1234" }),
       {} as any
     );
 
@@ -104,7 +104,7 @@ describe("record", () => {
 
     await expect(
       record(
-        makeRequest({ username: "paco", password: "1234" }),
+        makeRequest({ username: "pancho", password: "1234" }),
         {} as any
       )
     ).rejects.toThrow("DB error");

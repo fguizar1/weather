@@ -4,21 +4,22 @@ API built with Azure Functions (Node.js/TypeScript) that allows users to registe
 
 The API uses PostgreSQL to store users, successful weather queries, and errors. Each weather query and error is associated with the authenticated user who generated it.
 
-The API also supports city searches using an optional country code, allowing the same endpoint to query a city by name only or by city name and country.
+The API also supports city searches using an optional country code, allowing the same endpoint to query a city by name only or by city name and country code.
 
 ## Features
 
-- User registration with password hashing using bcryptjs
+- User registration with password hashing using `bcryptjs`
 - User login with JWT token generation
 - Weather queries protected by JWT authentication
-- Input validation using Yup
+- Input validation using `Yup`
 - Case-insensitive unique usernames
 - PostgreSQL database integration
-- Database record of every successful weather query in `peticiones_clima`
-- Database record of weather errors in `errores_log`
+- Database record of successful weather queries
+- Database record of weather errors
 - City search by name
 - City search by name and country code
 - Database migrations using `node-pg-migrate`
+- Database seeding with default users
 - Environment variable configuration using `.env`
 - API testing with Postman
 - Automatic JWT token management in Postman
@@ -32,14 +33,14 @@ The API also supports city searches using an optional country code, allowing the
 | Node.js + TypeScript | Runtime and development language |
 | Azure Functions v4 | Serverless API framework |
 | PostgreSQL | Database |
-| pg | PostgreSQL client |
+| `pg` | PostgreSQL client |
 | pgAdmin4 | Database management |
 | JSON Web Tokens (JWT) | Authentication |
-| bcryptjs | Password hashing |
+| `bcryptjs` | Password hashing |
 | Yup | Input validation |
 | OpenWeatherMap | Weather data |
-| node-pg-migrate | Database migrations |
-| dotenv | Environment variables |
+| `node-pg-migrate` | Database migrations |
+| `dotenv` | Environment variables |
 | Vitest | Unit testing |
 | Postman | API testing |
 | Swagger/OpenAPI | API documentation |
@@ -66,29 +67,42 @@ npm -v
 
 ```text
 template-servicios-typescript/
+
 ├── src/
 │   ├── functions/
 │   │   ├── registro.ts
 │   │   ├── login.ts
 │   │   ├── clima.ts
 │   │   └── healthCheck.ts
+│   │
+│   ├── scripts/
+│   │   └── seed.ts
+│   │
 │   └── shared/
 │       ├── config.js
 │       ├── db.js
 │       └── auth.js
+│
 ├── tests/
 │   ├── registro.test.ts
 │   ├── login.test.ts
 │   └── clima.test.ts
+│
 ├── migrations/
+│   └── 1790696365770_init-schema.js
+│
 ├── docs/
 │   ├── v1.yaml
+│
+├── .env
+├── .env.example
 ├── local.settings.json
+├── migrate.config.cjs
 ├── package.json
 └── README.md
 ```
 
-The exact filenames can vary depending on the current project version, but the main organization is based on `src/functions`, `src/shared`, `tests`, `migrations`, and `docs`.
+The exact filenames can vary depending on the current project version, but the main organization is based on `src/functions`, `src/scripts`, `src/shared`, `tests`, `migrations`, and `docs`.
 
 ## Installation
 
@@ -107,22 +121,33 @@ npm install
 
 ## Environment Configuration
 
-The project uses environment variables for the database, JWT, and OpenWeatherMap configuration.
+The project uses environment variables for the PostgreSQL database, JWT, and OpenWeatherMap configuration.
 
 ### 3. Create the `.env` file
 
-The `.env` file contains the database configuration and the connection string used by the migration system:
+If the project contains an `.env.example` file, copy it:
+
+```bash
+cp .env.example .env
+```
+
+On Windows Command Prompt, you can also copy it with:
+
+```cmd
+copy .env.example .env
+```
+
+Configure the variables in `.env`:
 
 ```env
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=clima
+DB_NAME=weather
 DB_USER=postgres
 DB_PASSWORD=your_password
 
-DATABASE_URL=postgres://postgres:your_password@localhost:5432/clima
-
 JWT_SECRET=your-secret-key
+
 WEATHER_API_KEY=your-openweathermap-api-key
 ```
 
@@ -137,9 +162,10 @@ Do not commit the real `.env` file or real credentials to the repository.
 | `DB_NAME` | PostgreSQL database name |
 | `DB_USER` | PostgreSQL username |
 | `DB_PASSWORD` | PostgreSQL password |
-| `DATABASE_URL` | PostgreSQL connection string used by migrations |
 | `JWT_SECRET` | Secret used to sign and verify JWT tokens |
 | `WEATHER_API_KEY` | OpenWeatherMap API key |
+
+The migration system does **not** require a separate `DATABASE_URL`. The values from `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` are loaded from `.env` through `migrate.config.cjs`.
 
 ## Azure Functions Local Configuration
 
@@ -163,39 +189,178 @@ Keep this file consistent with the local configuration required by the project. 
 
 ## Database Configuration
 
-### 4. Create the database
+### 4. Create the PostgreSQL database
 
-From pgAdmin4, create the PostgreSQL database:
-
-```sql
-CREATE DATABASE clima;
-```
-
-Connect to the `clima` database and create the required tables:
+Create the database from pgAdmin4 or another PostgreSQL client:
 
 ```sql
-CREATE TABLE usuarios (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    creado_en TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE peticiones_clima (
-    id SERIAL PRIMARY KEY,
-    usuario_id INT REFERENCES usuarios(id),
-    ciudad_consultada VARCHAR(100),
-    fecha TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE errores_log (
-    id SERIAL PRIMARY KEY,
-    usuario_id INT REFERENCES usuarios(id),
-    ciudad_consultada VARCHAR(100),
-    mensaje_error TEXT,
-    fecha TIMESTAMP DEFAULT NOW()
-);
+CREATE DATABASE weather;
 ```
+
+The database itself is created manually. The tables and indexes are created and managed through `node-pg-migrate`.
+
+After creating the database, configure the database variables in `.env`.
+
+## Database Migrations
+
+This project uses `node-pg-migrate` to manage and version database structure changes.
+
+The migration files are stored in the `migrations/` directory.
+
+The project uses `migrate.config.cjs` to read the PostgreSQL connection values directly from `.env`.
+
+### Migration configuration
+
+The `migrate.config.cjs` file is located in the root of the project:
+
+```text
+template-servicios-typescript/
+├── migrate.config.cjs
+├── package.json
+├── .env
+└── ...
+```
+
+Its configuration is:
+
+```javascript
+require("dotenv").config();
+
+module.exports = {
+  db: {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+  },
+};
+```
+
+This means that the database credentials are not written directly into the migration configuration.
+
+### Run pending migrations
+
+To apply all pending migrations:
+
+```bash
+npm run migrate:up
+```
+
+This command executes the pending migration files and creates or updates the database structure.
+
+### Roll back the last migration
+
+To reverse the most recently executed migration:
+
+```bash
+npm run migrate:down
+```
+
+The `down` function defined in the migration is executed to reverse the changes made by the corresponding `up` function.
+
+### Migration workflow
+
+The recommended database setup flow is:
+
+```text
+Create PostgreSQL database
+        ↓
+Configure .env
+        ↓
+npm run migrate:up
+        ↓
+Database structure is created
+        ↓
+Run the seed
+        ↓
+Default users are created
+        ↓
+Start the API
+```
+
+When changes to the database structure are required, create a new migration instead of modifying the database manually.
+
+## Database Seed
+
+The project includes a seed script to create default users for local development and testing.
+
+The seed is located at:
+
+```text
+src/scripts/seed.ts
+```
+
+The script creates the following default users:
+
+| Username | Password |
+|---|---|
+| `admin` | `admin1234` |
+| `juan` | `juan1234` |
+| `maria` | `maria1234` |
+| `paco` | `paco1234` |
+| `ana` | `ana1234` |
+
+Passwords are hashed with `bcryptjs` before being stored in PostgreSQL.
+
+The seed also checks usernames using a case-insensitive comparison. If a user already exists, the script skips that user instead of creating a duplicate.
+
+### Run the seed
+
+The seed can be executed after the database migrations have been applied.
+
+Add the following command to the `scripts` section of `package.json`:
+
+```json
+"seed": "tsx src/scripts/seed.ts"
+```
+
+Then execute:
+
+```bash
+npm run seed
+```
+
+The expected workflow is:
+
+```text
+npm run migrate:up
+        ↓
+Database tables created
+        ↓
+npm run seed
+        ↓
+Default users inserted
+```
+
+When the seed is executed again, existing users are skipped.
+
+Example output:
+
+```text
+Starting user seeder...
+
+admin created
+juan created
+maria created
+paco created
+ana created
+
+Seeder finished.
+```
+
+If a user already exists:
+
+```text
+Starting user seeder...
+
+admin already exists, skipping
+juan already exists, skipping
+
+Seeder finished.
+```
+
+The seed is intended for development and testing. Do not use default passwords in a production environment.
 
 ## Username Uniqueness
 
@@ -212,66 +377,119 @@ LuIs
 
 are considered the same username.
 
-A PostgreSQL unique index is used to enforce this rule:
+The database uses a unique index based on `LOWER(username)`:
 
 ```sql
-CREATE UNIQUE INDEX usuarios_username_lower_unique
-ON usuarios (LOWER(username));
+CREATE UNIQUE INDEX users_username_lower_unique
+ON users (LOWER(username));
 ```
 
-This prevents duplicate usernames even if the capitalization is different.
+This prevents duplicate usernames even when the capitalization is different.
 
-The application also normalizes usernames using lowercase before storing them in the database.
+## Database Schema
 
-## Database Migrations
+The current migration creates the following tables:
 
-This project uses `node-pg-migrate` to manage database structure changes.
+### `users`
 
-### Configure the database connection
+Stores registered users and their password hashes.
 
-The `.env` file contains the database configuration and the connection string used by the migration system:
+| Column | Description |
+|---|---|
+| `id` | User identifier |
+| `username` | Username |
+| `password_hash` | Encrypted password |
+| `created_at` | User creation date |
 
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=clima
-DB_USER=postgres
-DB_PASSWORD=your_password
-DATABASE_URL=postgres://postgres:your_password@localhost:5432/clima
-JWT_SECRET=your-secret-key
-WEATHER_API_KEY=your-openweathermap-api-key
-```
+### `weather_petition`
 
-### Create a migration
+Stores successful weather queries.
 
-```bash
-npm run migrate:create -- migration-name
-```
+| Column | Description |
+|---|---|
+| `id` | Query identifier |
+| `user_id` | User who performed the query |
+| `city_consulted` | City requested |
+| `created_at` | Query date |
 
-Example:
+### `error_log`
 
-```bash
-npm run migrate:create -- add-username-index
-```
+Stores errors generated during weather queries.
 
-### Run migrations
+| Column | Description |
+|---|---|
+| `id` | Error identifier |
+| `user_id` | User who generated the request |
+| `city_consulted` | City requested |
+| `message_error` | Error message |
+| `created_at` | Error date |
 
-```bash
-npm run migrate:up
-```
+## Example Migration
 
-### Roll back the last migration
+The initial migration creates the three main tables and the case-insensitive username index:
 
-```bash
-npm run migrate:down
-```
+```javascript
+exports.up = (pgm) => {
+  pgm.createTable("users", {
+    id: "id",
+    username: {
+      type: "varchar(50)",
+      notNull: true,
+    },
+    password_hash: {
+      type: "varchar(255)",
+      notNull: true,
+    },
+    created_at: {
+      type: "timestamp",
+      default: pgm.func("now()"),
+    },
+  });
 
-If all migrations have already been executed, the command returns:
+  pgm.createIndex("users", "LOWER(username)", {
+    name: "users_username_lower_unique",
+    unique: true,
+  });
 
-```text
-No migrations to run!
+  pgm.createTable("weather_petition", {
+    id: "id",
+    user_id: {
+      type: "integer",
+      references: "users",
+    },
+    city_consulted: {
+      type: "varchar(100)",
+    },
+    created_at: {
+      type: "timestamp",
+      default: pgm.func("now()"),
+    },
+  });
 
-Migrations complete!
+  pgm.createTable("error_log", {
+    id: "id",
+    user_id: {
+      type: "integer",
+      references: "users",
+    },
+    city_consulted: {
+      type: "varchar(100)",
+    },
+    message_error: {
+      type: "text",
+    },
+    created_at: {
+      type: "timestamp",
+      default: pgm.func("now()"),
+    },
+  });
+};
+
+exports.down = (pgm) => {
+  pgm.dropTable("error_log");
+  pgm.dropTable("weather_petition");
+  pgm.dropTable("users");
+};
 ```
 
 ## Run the Project
@@ -336,7 +554,7 @@ Request body:
 
 The password must contain at least 4 characters.
 
-The username must also be unique without considering uppercase/lowercase differences.
+The username must be unique without considering uppercase/lowercase differences.
 
 For example, if `juan` already exists, the following usernames cannot be registered:
 
@@ -350,7 +568,7 @@ jUaN
 
 ```json
 {
-  "mensaje": "Usuario creado"
+  "message": "User create"
 }
 ```
 
@@ -380,6 +598,14 @@ Request body:
 ```
 
 The returned token is used to access protected endpoints.
+
+### Invalid credentials
+
+```json
+{
+  "error": "Usuario o contraseña incorrectos"
+}
+```
 
 ## Weather Query
 
@@ -413,7 +639,7 @@ The API internally builds:
 Guadalajara,MX
 ```
 
-The `pais` parameter should use an **ISO 3166-1 alpha-2** country code, using two letters.
+The `pais` parameter should use an **ISO 3166-1 alpha-2** country code.
 
 Examples:
 
@@ -430,13 +656,7 @@ For example:
 GET /api/clima/Guadalajara?pais=MX
 ```
 
-queries Guadalajara, Mexico, while:
-
-```http
-GET /api/clima/Guadalajara?pais=ES
-```
-
-queries Guadalajara, Spain.
+queries Guadalajara, Mexico.
 
 Avoid using full country names such as:
 
@@ -450,25 +670,25 @@ Use the two-letter country code instead.
 
 ## Weather Query Database Records
 
-Every successful weather query is stored in the `peticiones_clima` table.
+Every successful weather query is stored in the `weather_petition` table.
 
 Example:
 
 ```text
-usuario_id: 1
-ciudad_consultada: Guadalajara,MX
-fecha: 2026-09-22 10:30:00
+user_id: 1
+city_consulted: Guadalajara,MX
+created_at: 2026-09-22 10:30:00
 ```
 
-Errors such as a city not being found are stored in the `errores_log` table.
+Errors such as a city not being found are stored in the `error_log` table.
 
 Example:
 
 ```text
-usuario_id: 1
-ciudad_consultada: CiudadInexistente,MX
-mensaje_error: Status 404: city no found
-fecha: 2026-09-22 10:35:00
+user_id: 1
+city_consulted: CiudadInexistente,MX
+message_error: Status 404: ciudad no encontrada
+created_at: 2026-09-22 10:35:00
 ```
 
 ## API Responses
@@ -477,7 +697,7 @@ The following table summarizes the main documented responses:
 
 | Endpoint | Status | Meaning | Example |
 |---|---:|---|---|
-| `POST /api/auth/registro` | 200 | User created successfully | `{"mensaje":"Usuario creado"}` |
+| `POST /api/auth/registro` | 200 | User created successfully | `{"message":"User create"}` |
 | `POST /api/auth/registro` | 400 | Validation error | Response contains an `errores` array generated by Yup |
 | `POST /api/auth/login` | 200 | Login successful | `{"token":"<jwt>"}` |
 | `POST /api/auth/login` | 401 | Invalid username or password | `{"error":"Usuario o contraseña incorrectos"}` |
@@ -486,14 +706,14 @@ The following table summarizes the main documented responses:
 
 ### Validation error example
 
-When Yup validation fails, the API returns a `400` response containing the validation errors in an `errores` array.
+When Yup validation fails, the API returns a `400` response containing the validation errors in an `error` array.
 
 Example:
 
 ```json
 {
-  "errores": [
-    "El usuario es requerido"
+  "error": [
+    "The user is required"
   ]
 }
 ```
@@ -504,7 +724,7 @@ The exact messages depend on the validation rule that fails.
 
 ```json
 {
-  "error": "Usuario o contraseña incorrectos"
+  "error": "User o password incorrect"
 }
 ```
 
@@ -512,7 +732,7 @@ The exact messages depend on the validation rule that fails.
 
 ```json
 {
-  "error": "Token inválido o ausente"
+  "error": "Token invalid o asben"
 }
 ```
 
@@ -555,23 +775,11 @@ The test suite covers the main functions, including registration, login, and wea
 
 ## Testing with Postman
 
-A Postman collection should be stored in the `docs/` directory so the complete API can be imported without creating every request manually.
-
-Recommended location:
-
-```text
-docs/postman/
-```
-
-### 1. Import the collection
-
-Import the exported Postman collection from the `docs/postman/` directory.
-
-### 2. Select the Environment
+### 1. Select the Environment
 
 The requests use Postman environment variables.
 
-The protected requests use:
+Protected requests use:
 
 ```text
 {{token}}
@@ -579,9 +787,9 @@ The protected requests use:
 
 Make sure the correct Environment is selected in Postman before sending requests.
 
-### 3. Register a user
+### 2. Register a user
 
-Create or run:
+Run:
 
 ```http
 POST http://localhost:7071/api/auth/registro
@@ -596,7 +804,7 @@ Body:
 }
 ```
 
-### 4. Login
+### 3. Login
 
 Run:
 
@@ -616,19 +824,19 @@ Body:
 The login request contains a Postman script that automatically stores the JWT:
 
 ```javascript
-const respuesta = pm.response.json();
+const answer = pm.response.json();
 
-if (respuesta.token) {
-    pm.environment.set("token", respuesta.token);
-    console.log("Token guardado automáticamente:", respuesta.token);
+if (answer.token) {
+  pm.environment.set("token", answer.token);
+  console.log("automatically saved token");
 } else {
-    console.log("Login falló, no se guardó token");
+  console.log("Login failed; the token was not saved.");
 }
 ```
 
-This means the token does not need to be copied manually.
+This means that the token does not need to be copied manually.
 
-### 5. Query the weather
+### 4. Query the weather
 
 For a protected request, configure:
 
@@ -646,9 +854,7 @@ Example:
 GET http://localhost:7071/api/clima/Guadalajara
 ```
 
-The selected Environment provides the value stored in `token`.
-
-### 6. Query a city using a country
+### 5. Query a city using a country
 
 Use:
 
@@ -710,7 +916,7 @@ The Swagger/OpenAPI documentation describes:
 
 ## Troubleshooting
 
-### npm returns `E401`
+### `npm` returns `E401`
 
 If `npm install` fails with an error similar to:
 
@@ -751,6 +957,38 @@ instead of:
 import { pool } from "../shared/db";
 ```
 
+### Migration connection error
+
+If `npm run migrate:up` or `npm run migrate:down` cannot connect to PostgreSQL, verify the values in `.env`:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=clima
+DB_USER=postgres
+DB_PASSWORD=your_password
+```
+
+Also verify that the PostgreSQL server is running and that the database exists.
+
+### `{{token}}` is not resolved in Postman
+
+If Postman sends the literal value:
+
+```text
+{{token}}
+```
+
+check the following:
+
+1. A Postman Environment is selected.
+2. The Environment contains a `token` variable.
+3. The login request was executed successfully.
+4. The login response contains a `token`.
+5. The login script executed correctly.
+
+The login script only stores the token when the response contains `respuesta.token`.
+
 ### `401` when opening the weather endpoint from a browser
 
 The weather endpoint is protected by JWT authentication.
@@ -771,29 +1009,11 @@ Therefore, the API can return:
 
 ```json
 {
-  "error": "Token inválido o ausente"
+  "error": "Token invalid o absent"
 }
 ```
 
 Use Postman or Swagger/OpenAPI with the `Authorization` header configured.
-
-### `{{token}}` is not resolved in Postman
-
-If Postman sends the literal value:
-
-```text
-{{token}}
-```
-
-check the following:
-
-1. A Postman Environment is selected.
-2. The Environment contains a `token` variable.
-3. The login request was executed successfully.
-4. The login response contains a `token`.
-5. The login script executed correctly.
-
-The login script only stores the token when the response contains `respuesta.token`.
 
 ## Author
 

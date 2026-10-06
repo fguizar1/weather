@@ -42,7 +42,7 @@ describe("login", () => {
     );
 
     expect(pool.query).toHaveBeenCalledWith(
-      "SELECT * FROM usuarios WHERE LOWER(username) = LOWER($1)",
+      "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
       ["paco"]
     );
     expect(bcrypt.compare).toHaveBeenCalledWith("1234", "hashed_password");

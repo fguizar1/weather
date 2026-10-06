@@ -21,8 +21,9 @@
     "prepare": "node .husky/install.mjs",
     "migrate": "node-pg-migrate",
     "migrate:create": "node-pg-migrate create",
-    "migrate:up": "dotenv -e .env -- node-pg-migrate up",
-    "migrate:down": "dotenv -e .env -- node-pg-migrate down"
+    "migrate:up": "node-pg-migrate up --config-file migrate.config.cjs",
+    "migrate:down": "node-pg-migrate down --config-file migrate.config.cjs",
+    "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@azure/functions": "^4.10.0",

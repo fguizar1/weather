@@ -48,7 +48,7 @@ export async function login(request: HttpRequest, context: InvocationContext): P
   };
 
 const result = await pool.query(
-  "SELECT * FROM usuarios WHERE LOWER(username) = LOWER($1)",
+  "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
   [body.username]
 );
 

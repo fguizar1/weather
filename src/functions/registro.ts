@@ -69,7 +69,12 @@ const recordSchema = yup.object({
  * }
  */
 export async function record(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  const body = await request.json();
+  const body = await request.json() as { username?: string; password?: string };
+
+  if (typeof body.username === 'string') {
+    body.username = body.username.trim();
+  }
+
 
   try {
     await recordSchema.validate(body, { abortEarly: true });
@@ -88,7 +93,7 @@ export async function record(request: HttpRequest, context: InvocationContext): 
   };
 
 const existe = await pool.query(
-  'SELECT id FROM usuarios WHERE LOWER(username) = LOWER($1)',
+  'SELECT id FROM users WHERE LOWER(username) = LOWER($1)',
   [username]
 );
   if (existe.rows.length > 0) {
@@ -103,7 +108,7 @@ const existe = await pool.query(
   const hash = await bcrypt.hash(password, 10);
 
   await pool.query(
-    "INSERT INTO usuarios (username, password_hash) VALUES ($1, $2)",
+    "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
     [username, hash]
   );
 
